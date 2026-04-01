@@ -1,0 +1,12 @@
+{
+  "name": "legendary-police-bot",
+  "version": "1.0.0",
+  "description": "Legendary Police Officer Discord bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3"
+  }
+}
