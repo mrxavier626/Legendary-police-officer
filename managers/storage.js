@@ -3,7 +3,6 @@ const path = require("path");
 
 const dataPath = path.join(__dirname, "..", "data");
 
-// -------- FILE PATHS --------
 const files = {
   guildConfig: "guildConfig.json",
   warnings: "warnings.json",
@@ -12,31 +11,36 @@ const files = {
   relaySessions: "relaySessions.json"
 };
 
-// -------- ENSURE FILES --------
 function ensureDataFiles() {
+  if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath, { recursive: true });
+  }
+
   for (const key in files) {
     const filePath = path.join(dataPath, files[key]);
 
     if (!fs.existsSync(filePath)) {
       fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
-      console.log(`Created ${files[key]}`);
     }
   }
 }
 
-// -------- READ FILE --------
 function readFile(name) {
   const filePath = path.join(dataPath, files[name]);
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8");
+  return raw.trim() ? JSON.parse(raw) : {};
 }
 
-// -------- WRITE FILE --------
 function writeFile(name, data) {
   const filePath = path.join(dataPath, files[name]);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-// -------- GUILD CONFIG --------
 function getGuildConfig(guildId) {
   const data = readFile("guildConfig");
 
@@ -56,13 +60,19 @@ function getGuildConfig(guildId) {
 function setGuildConfig(guildId, key, value) {
   const data = readFile("guildConfig");
 
-  if (!data[guildId]) data[guildId] = {};
+  if (!data[guildId]) {
+    data[guildId] = {
+      logChannelId: null,
+      welcomeChannelId: null,
+      verifyChannelId: null,
+      verifyRoleId: null
+    };
+  }
 
   data[guildId][key] = value;
   writeFile("guildConfig", data);
 }
 
-// -------- WARNINGS --------
 function addWarning(guildId, userId, reason) {
   const data = readFile("warnings");
 
@@ -82,7 +92,15 @@ function getWarnings(guildId, userId) {
   return data[guildId]?.[userId] || [];
 }
 
-// -------- NOTES --------
+function clearWarnings(guildId, userId) {
+  const data = readFile("warnings");
+
+  if (!data[guildId]) data[guildId] = {};
+  data[guildId][userId] = [];
+
+  writeFile("warnings", data);
+}
+
 function addNote(guildId, userId, note) {
   const data = readFile("notes");
 
@@ -99,19 +117,54 @@ function getNotes(guildId, userId) {
   return data[guildId]?.[userId] || [];
 }
 
-// -------- VC BANS --------
+function clearNotes(guildId, userId) {
+  const data = readFile("notes");
+
+  if (!data[guildId]) data[guildId] = {};
+  data[guildId][userId] = [];
+
+  writeFile("notes", data);
+}
+
 function addVcBan(guildId, userId) {
   const data = readFile("vcbans");
 
   if (!data[guildId]) data[guildId] = [];
-  data[guildId].push(userId);
+  if (!data[guildId].includes(userId)) {
+    data[guildId].push(userId);
+  }
+
+  writeFile("vcbans", data);
+}
+
+function removeVcBan(guildId, userId) {
+  const data = readFile("vcbans");
+
+  if (!data[guildId]) data[guildId] = [];
+  data[guildId] = data[guildId].filter(id => id !== userId);
 
   writeFile("vcbans", data);
 }
 
 function isVcBanned(guildId, userId) {
   const data = readFile("vcbans");
-  return data[guildId]?.includes(userId);
+  return data[guildId]?.includes(userId) || false;
+}
+
+function getRelaySessions() {
+  return readFile("relaySessions");
+}
+
+function setRelaySession(userId, sessionData) {
+  const data = readFile("relaySessions");
+  data[userId] = sessionData;
+  writeFile("relaySessions", data);
+}
+
+function clearRelaySession(userId) {
+  const data = readFile("relaySessions");
+  delete data[userId];
+  writeFile("relaySessions", data);
 }
 
 module.exports = {
@@ -120,8 +173,14 @@ module.exports = {
   setGuildConfig,
   addWarning,
   getWarnings,
+  clearWarnings,
   addNote,
   getNotes,
+  clearNotes,
   addVcBan,
-  isVcBanned
+  removeVcBan,
+  isVcBanned,
+  getRelaySessions,
+  setRelaySession,
+  clearRelaySession
 };
